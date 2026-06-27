@@ -1,0 +1,363 @@
+/* ── Page wrapper ── */
+.page {
+  min-height: 100vh;
+  background-color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Ambient background glows ── */
+.page::before {
+  content: '';
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.055) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.page::after {
+  content: '';
+  position: absolute;
+  bottom: -160px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 400px;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Centered container ── */
+.container {
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Logo / hero area ── */
+.logoArea {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.logoCircle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
+.logoIcon {
+  width: 24px;
+  height: 24px;
+  color: #000000;
+}
+
+.heading {
+  font-size: 25px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
+}
+
+.subheading {
+  font-size: 14px;
+  color: #666666;
+  margin: 0;
+}
+
+/* ── Toggle tabs (Login / Sign up) ── */
+.tabs {
+  display: flex;
+  background-color: #0d0d0d;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 20px;
+  gap: 4px;
+}
+
+.tab {
+  flex: 1;
+  padding: 9px 0;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #555555;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.tab:hover {
+  color: #aaaaaa;
+}
+
+.tabActive {
+  background-color: #1f1f1f;
+  color: #ffffff;
+}
+
+/* ── Card ── */
+.card {
+  background-color: #0d0d0d;
+  border: 1px solid #1f1f1f;
+  border-radius: 14px;
+  padding: 32px 28px;
+}
+
+/* ── Form fields ── */
+.fieldGroup {
+  margin-bottom: 18px;
+}
+
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #aaaaaa;
+  margin-bottom: 7px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #111111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input::placeholder {
+  color: #3a3a3a;
+}
+
+.input:focus {
+  border-color: #ffffff;
+}
+
+.inputWithIcon {
+  padding-right: 44px;
+}
+
+/* ── Two-column name row (signup only) ── */
+.nameRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+/* ── Eye toggle button ── */
+.eyeBtn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #555555;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.eyeBtn:hover {
+  color: #aaaaaa;
+}
+
+/* ── Remember me + Forgot password row ── */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  margin-bottom: 24px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #777777;
+}
+
+.checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: #ffffff;
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 13px;
+  color: #777777;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.forgotLink:hover {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+/* ── Terms text (signup only) ── */
+.terms {
+  font-size: 12px;
+  color: #555555;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.termsLink {
+  color: #888888;
+  text-decoration: none;
+  border-bottom: 1px solid #444444;
+  padding-bottom: 1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.termsLink:hover {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+/* ── Error message ── */
+.errorMsg {
+  font-size: 12px;
+  color: #ff5555;
+  margin-bottom: 14px;
+  margin-top: -6px;
+}
+
+/* ── Primary action button ── */
+.submitBtn {
+  width: 100%;
+  padding: 12px;
+  background-color: #ffffff;
+  color: #000000;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.1px;
+  margin-bottom: 18px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}
+
+.submitBtn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* ── OR divider ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background-color: #1f1f1f;
+}
+
+.dividerText {
+  font-size: 11px;
+  color: #444444;
+  letter-spacing: 0.5px;
+}
+
+/* ── Google button ── */
+.googleBtn {
+  width: 100%;
+  padding: 11px;
+  background-color: transparent;
+  color: #cccccc;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.googleBtn:hover {
+  border-color: #555555;
+  color: #ffffff;
+}
+
+/* ── Footer switch link ── */
+.footer {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: #555555;
+}
+
+.footerLink {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid #444444;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.footerLink:hover {
+  border-bottom-color: #ffffff;
+}
