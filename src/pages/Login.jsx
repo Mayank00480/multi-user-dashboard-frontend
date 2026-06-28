@@ -27,7 +27,7 @@ const LogoIcon = () => (
 );
 
 /* ── API base URL — swap to env var in production ── */
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "https://multi-user-dashboard-backend.onrender.com";
 
 /* ══════════════════════════════════════════
    AuthPage — single component, two modes
