@@ -1,7 +1,7 @@
 import { useState } from "react";
 import styles from "../styles/login.module.css";
 import { useNavigate } from "react-router-dom";
-
+import {Link }from "react-router-dom";
 /* ── Shared SVG icons ── */
 const EyeIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -317,7 +317,7 @@ export default function AuthPage({ defaultMode = "login" }) {
                   />
                   Remember me
                 </label>
-                <a href="#" className={styles.forgotLink}>Forgot password?</a>
+                <Link href="#" className={styles.forgotLink}>Forgot password?</Link>
               </div>
             )}
 
@@ -325,9 +325,9 @@ export default function AuthPage({ defaultMode = "login" }) {
             {isSignup && (
               <p className={styles.terms}>
                 By creating an account you agree to our{" "}
-                <a href="#" className={styles.termsLink}>Terms of Service</a>{" "}
+                <Link to="/#" className={styles.termsLink}>Terms of Service</Link>{" "}
                 and{" "}
-                <a href="#" className={styles.termsLink}>Privacy Policy</a>.
+                <Link href="#" className={styles.termsLink}>Privacy Policy</Link>.
               </p>
             )}
 

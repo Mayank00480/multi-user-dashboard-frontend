@@ -72,17 +72,6 @@ const TABLE_DATA = [
   { name: "Ananya Roy",     role: "UI/UX Designer",  stage: "Portfolio",   status: "Active"   },
 ];
 
-/* Initial widget layout */
-const INITIAL_WIDGETS = [
-  { id: "w1", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 0, title: "Active Jobs",      col: 1, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
-  { id: "w2", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 1, title: "Applicants",       col: 2, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
-  { id: "w3", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 2, title: "Time to Hire",     col: 3, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
-  { id: "w4", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 3, title: "Offer Accept %",   col: 4, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
-  { id: "w5", type: WIDGET_TYPES.LINE_CHART, title: "Applications Over Time",         col: 1, row: 2, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.LINE_CHART] },
-  { id: "w6", type: WIDGET_TYPES.BAR_CHART,  title: "Hiring by Department",           col: 3, row: 2, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.BAR_CHART]  },
-  { id: "w7", type: WIDGET_TYPES.DATA_TABLE, title: "Candidate Pipeline",             col: 1, row: 4, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.DATA_TABLE] },
-];
-
 /* ── Colour palette ── */
 const CHART_COLORS = { primary: "#6366f1", secondary: "#06b6d4", accent: "#f59e0b", muted: "#94a3b8" };
 
@@ -422,7 +411,6 @@ const WorkspaceDetails = () => {
 
   const isAdmin = currentUserRole === "Admin";
   const isAnalyst = currentUserRole === "Analyst";
-  const isViewer = currentUserRole === "Viewer";
 
   console.log("Current user role:", currentUserRole);
 
