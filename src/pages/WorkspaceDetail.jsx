@@ -462,20 +462,15 @@ const WorkspaceDetails = () => {
     fetchAvailableUsers();
   }, [fetchWorkspace, fetchAvailableUsers]);
 
-  /* ── Widget actions ── */
   const handleRemoveWidget = useCallback((id) => {
-    socket.emit("dashboard-action",{
-
-    workspaceId,
-
-    action:"DELETE_WIDGET",
-
-    data:{
-        widgetId:id
-    }
-
-});
-  }, []);
+    socket.emit("dashboard-action", {
+        workspaceId,
+        action: "DELETE_WIDGET",
+        data: {
+            widgetId: id
+        }
+    });
+}, [workspaceId]);
 
   const handleAddWidget = useCallback((type) => {
 
@@ -518,20 +513,16 @@ const WorkspaceDetails = () => {
 }, [widgets, workspaceId]);
 
   const handleResize = useCallback((id, newW, newH) => {
-      socket.emit("dashboard-action",{
-
+    socket.emit("dashboard-action", {
         workspaceId,
-
-        action:"RESIZE_WIDGET",
-
-        data:{
-            widgetId:id,
-            w:newW,
-            h:newH
+        action: "RESIZE_WIDGET",
+        data: {
+            widgetId: id,
+            w: newW,
+            h: newH
         }
-
     });
-  }, []);
+}, [workspaceId]);
 
   /* ── Drag & Drop ── */
   const handleDragStart = useCallback((e, id) => {
@@ -548,27 +539,23 @@ const WorkspaceDetails = () => {
 
   const handleCellDrop = useCallback((e, col, row) => {
     e.preventDefault();
+
     if (!dragId) return;
-      socket.emit("dashboard-action",{
 
+    socket.emit("dashboard-action", {
         workspaceId,
-
-        action:"MOVE_WIDGET",
-
-        data:{
-
-            widgetId:dragId,
-
+        action: "MOVE_WIDGET",
+        data: {
+            widgetId: dragId,
             col,
-
             row
-
         }
-
     });
+
     setDragId(null);
     setDropTarget(null);
-  }, [dragId]);
+
+}, [dragId, workspaceId]);
 
   const handleDragEnd = useCallback(() => {
     setDragId(null);
