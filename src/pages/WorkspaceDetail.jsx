@@ -2,91 +2,143 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import api from "../services/api";
 import styles from "../styles/Workspacedetails.module.css";
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 
+import socket from "../utils/socket";
+
+/* ══════════════════════════════════════════════════════════
+   CONSTANTS & DUMMY DATA
+══════════════════════════════════════════════════════════ */
 const ROLES = ["Admin", "Analyst", "Viewer"];
-
 const ROLE_CLASS = {
   Admin: styles.roleAdmin,
   Analyst: styles.roleAnalyst,
   Viewer: styles.roleViewer,
 };
 
+const WIDGET_TYPES = {
+  LINE_CHART: "line_chart",
+  BAR_CHART: "bar_chart",
+  KPI_CARD: "kpi_card",
+  DATA_TABLE: "data_table",
+};
+
+const WIDGET_CATALOG = [
+  { type: WIDGET_TYPES.LINE_CHART,  label: "Line Chart",  icon: "📈" },
+  { type: WIDGET_TYPES.BAR_CHART,   label: "Bar Chart",   icon: "📊" },
+  { type: WIDGET_TYPES.KPI_CARD,    label: "KPI Card",    icon: "🎯" },
+  { type: WIDGET_TYPES.DATA_TABLE,  label: "Data Table",  icon: "📋" },
+];
+
+/* ── Default sizes (in grid columns / rows) ── */
+const WIDGET_DEFAULT_SIZE = {
+  [WIDGET_TYPES.LINE_CHART]: { w: 2, h: 2 },
+  [WIDGET_TYPES.BAR_CHART]:  { w: 2, h: 2 },
+  [WIDGET_TYPES.KPI_CARD]:   { w: 1, h: 1 },
+  [WIDGET_TYPES.DATA_TABLE]: { w: 3, h: 2 },
+};
+
+/* ── Dummy data ── */
+const LINE_DATA = [
+  { month: "Jan", applications: 42, interviews: 18 },
+  { month: "Feb", applications: 58, interviews: 24 },
+  { month: "Mar", applications: 71, interviews: 30 },
+  { month: "Apr", applications: 55, interviews: 22 },
+  { month: "May", applications: 89, interviews: 41 },
+  { month: "Jun", applications: 103, interviews: 53 },
+];
+const BAR_DATA = [
+  { dept: "Eng",     hired: 12, rejected: 5 },
+  { dept: "Design",  hired: 7,  rejected: 3 },
+  { dept: "Sales",   hired: 9,  rejected: 6 },
+  { dept: "Ops",     hired: 4,  rejected: 2 },
+  { dept: "HR",      hired: 3,  rejected: 1 },
+];
+const KPI_DATA = [
+  { label: "Active Jobs",     value: "34",    delta: "+4",  up: true  },
+  { label: "Total Applicants",value: "1,284", delta: "+127",up: true  },
+  { label: "Time to Hire",    value: "18 d",  delta: "-2d", up: true  },
+  { label: "Offer Accept %",  value: "74%",   delta: "-3%", up: false },
+];
+const TABLE_DATA = [
+  { name: "Aryan Mehta",    role: "Frontend Dev",    stage: "Technical",   status: "Active"   },
+  { name: "Priya Sharma",   role: "Product Manager", stage: "HR Round",    status: "Active"   },
+  { name: "Ravi Kumar",     role: "Data Analyst",    stage: "Offer Sent",  status: "Pending"  },
+  { name: "Sneha Patel",    role: "DevOps Eng",      stage: "Rejected",    status: "Closed"   },
+  { name: "Karan Singh",    role: "Backend Dev",     stage: "Screening",   status: "Active"   },
+  { name: "Ananya Roy",     role: "UI/UX Designer",  stage: "Portfolio",   status: "Active"   },
+];
+
+/* Initial widget layout */
+const INITIAL_WIDGETS = [
+  { id: "w1", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 0, title: "Active Jobs",      col: 1, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
+  { id: "w2", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 1, title: "Applicants",       col: 2, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
+  { id: "w3", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 2, title: "Time to Hire",     col: 3, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
+  { id: "w4", type: WIDGET_TYPES.KPI_CARD,   kpiIndex: 3, title: "Offer Accept %",   col: 4, row: 1, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.KPI_CARD]  },
+  { id: "w5", type: WIDGET_TYPES.LINE_CHART, title: "Applications Over Time",         col: 1, row: 2, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.LINE_CHART] },
+  { id: "w6", type: WIDGET_TYPES.BAR_CHART,  title: "Hiring by Department",           col: 3, row: 2, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.BAR_CHART]  },
+  { id: "w7", type: WIDGET_TYPES.DATA_TABLE, title: "Candidate Pipeline",             col: 1, row: 4, ...WIDGET_DEFAULT_SIZE[WIDGET_TYPES.DATA_TABLE] },
+];
+
+/* ── Colour palette ── */
+const CHART_COLORS = { primary: "#6366f1", secondary: "#06b6d4", accent: "#f59e0b", muted: "#94a3b8" };
+
+/* ══════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════ */
 const getInitials = (name = "") => {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-/* ── Icons ──────────────────────────────────────────────── */
-const IconBold = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+let widgetCounter = 100;
+const makeId = () => `w${++widgetCounter}`;
+const canPlace = (widgets, row, col, w, h) => {
+  return !widgets.some(widget => {
+    return (
+      col < widget.col + widget.w &&
+      col + w > widget.col &&
+      row < widget.row + widget.h &&
+      row + h > widget.row
+    );
+  });
+};
+
+const findEmptyPosition = (widgets, w, h) => {
+  for (let row = 1; row <= 100; row++) {
+    for (let col = 1; col <= GRID_COLS - w + 1; col++) {
+      if (canPlace(widgets, row, col, w, h)) {
+        return { row, col };
+      }
+    }
+  }
+
+  return { row: 1, col: 1 };
+};
+
+
+/* ══════════════════════════════════════════════════════════
+   ICONS
+══════════════════════════════════════════════════════════ */
+const IconClose = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 );
-const IconItalic = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>
+const IconDrag = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9"  cy="5"  r="1" fill="currentColor"/><circle cx="15" cy="5"  r="1" fill="currentColor"/>
+    <circle cx="9"  cy="12" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/>
+    <circle cx="9"  cy="19" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/>
   </svg>
 );
-const IconUnderline = () => (
+const IconAdd = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/>
-  </svg>
-);
-const IconStrike = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6C16 6 14.5 4 12 4c-2.5 0-4 1.5-4 3 0 1.4.8 2.3 2 3"/><path d="M8 18c0 0 1.5 2 4 2 2.5 0 4-1.5 4-3 0-1.4-.8-2.3-2-3"/>
-  </svg>
-);
-const IconH1 = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="M17 12l3-2v8"/>
-  </svg>
-);
-const IconH2 = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="M21 18h-4c0-4 4-3 4-6 0-1.5-1-2.5-2-2.5S17 10 17 11"/>
-  </svg>
-);
-const IconUL = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/>
-    <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/>
-    <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/>
-    <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/>
-  </svg>
-);
-const IconOL = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
-    <path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
-  </svg>
-);
-const IconQuote = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/>
-    <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>
-  </svg>
-);
-const IconCode = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-  </svg>
-);
-const IconLink = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-  </svg>
-);
-const IconUndo = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
-  </svg>
-);
-const IconRedo = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
 const IconSidebarClose = () => (
@@ -101,98 +153,238 @@ const IconSidebarOpen = () => (
     <polyline points="9 7 13 12 9 17"/>
   </svg>
 );
-const IconSave = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-    <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-  </svg>
-);
-const IconCheck = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
+const IconResize = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+    <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
   </svg>
 );
 
-/* ── Toast ──────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════ */
 const Toast = ({ message, type }) => (
   <div className={`${styles.toast} ${type === "error" ? styles.toastError : styles.toastSuccess}`}>
-    {type === "success" ? <IconCheck /> : (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-    )}
     {message}
   </div>
 );
 
-/* ── Skeleton ───────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   LOADING SKELETON
+══════════════════════════════════════════════════════════ */
 const LoadingSkeleton = () => (
   <div className={styles.shell}>
-    {/* Topbar skeleton */}
     <div className={styles.topbar}>
       <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: 160, height: 18 }} />
       <div className={styles.topbarRight}>
         <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: 80, height: 28 }} />
-        <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: 28, height: 28 }} />
       </div>
     </div>
-
-    {/* Body skeleton */}
     <div className={styles.body}>
-      {/* Editor zone */}
-      <div className={styles.editorZone}>
-        <div className={styles.toolbarSkeleton}>
-          {[80, 60, 60, 60, 40, 60, 60].map((w, i) => (
-            <div key={i} className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: w, height: 22, animationDelay: `${i * 0.06}s` }} />
-          ))}
-        </div>
-        <div className={styles.paperSkeleton}>
-          <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: "55%", height: 32, marginBottom: 20 }} />
-          {[100, 88, 95, 72, 80].map((w, i) => (
-            <div key={i} className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: `${w}%`, height: 14, marginBottom: 10, animationDelay: `${i * 0.08}s` }} />
-          ))}
-          <div style={{ height: 24 }} />
-          {[90, 78, 85].map((w, i) => (
-            <div key={i} className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: `${w}%`, height: 14, marginBottom: 10, animationDelay: `${i * 0.08}s` }} />
-          ))}
-        </div>
-      </div>
-
-      {/* Sidebar skeleton */}
-      <div className={styles.sidebar}>
-        <div className={styles.sidebarHeader}>
-          <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: 80, height: 14 }} />
-        </div>
-        <div className={styles.sidebarBody}>
-          {[0, 0.1, 0.2].map((delay, i) => (
-            <div key={i} className={styles.skeletonMemberRow}>
-              <div className={`${styles.skeletonAvatar} ${styles.shimmer}`} style={{ animationDelay: `${delay}s` }} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-                <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: "65%", height: 12, animationDelay: `${delay}s` }} />
-                <div className={`${styles.skeletonChip} ${styles.shimmer}`} style={{ width: "80%", height: 11, animationDelay: `${delay}s` }} />
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className={styles.widgetCanvas}>
+        {[0,1,2,3].map(i => (
+          <div key={i} className={`${styles.skeletonWidget} ${styles.shimmer}`} style={{ animationDelay: `${i*0.1}s` }} />
+        ))}
       </div>
     </div>
   </div>
 );
 
-/* ── Toolbar button ─────────────────────────────────────── */
-const ToolBtn = ({ onClick, title, children, active }) => (
-  <button
-    className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ""}`}
-    onMouseDown={(e) => { e.preventDefault(); onClick(); }}
-    title={title}
-    type="button"
-  >
-    {children}
-  </button>
+/* ══════════════════════════════════════════════════════════
+   WIDGET CONTENTS
+══════════════════════════════════════════════════════════ */
+const KpiCardContent = ({ kpiIndex = 0 }) => {
+  const d = KPI_DATA[kpiIndex] ?? KPI_DATA[0];
+  return (
+    <div className={styles.kpiContent}>
+      <p className={styles.kpiLabel}>{d.label}</p>
+      <p className={styles.kpiValue}>{d.value}</p>
+      <span className={`${styles.kpiDelta} ${d.up ? styles.kpiDeltaUp : styles.kpiDeltaDown}`}>
+        {d.up ? "▲" : "▼"} {d.delta}
+        <span className={styles.kpiDeltaLabel}> vs last month</span>
+      </span>
+    </div>
+  );
+};
+
+const LineChartContent = () => (
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={LINE_DATA} margin={{ top: 6, right: 16, left: -16, bottom: 0 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+      <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+      <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
+      <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
+      <Line type="monotone" dataKey="applications" stroke={CHART_COLORS.primary} strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+      <Line type="monotone" dataKey="interviews" stroke={CHART_COLORS.secondary} strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+    </LineChart>
+  </ResponsiveContainer>
 );
 
-/* ── Toolbar divider ────────────────────────────────────── */
-const ToolDivider = () => <span className={styles.toolDivider} />;
+const BarChartContent = () => (
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={BAR_DATA} margin={{ top: 6, right: 16, left: -16, bottom: 0 }} barSize={14}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+      <XAxis dataKey="dept" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+      <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
+      <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
+      <Bar dataKey="hired" fill={CHART_COLORS.primary} radius={[4,4,0,0]} />
+      <Bar dataKey="rejected" fill={CHART_COLORS.muted} radius={[4,4,0,0]} />
+    </BarChart>
+  </ResponsiveContainer>
+);
+
+const STATUS_CLASS = { Active: styles.statusActive, Pending: styles.statusPending, Closed: styles.statusClosed };
+const DataTableContent = () => (
+  <div className={styles.tableWrapper}>
+    <table className={styles.dataTable}>
+      <thead>
+        <tr>
+          <th>Candidate</th><th>Role</th><th>Stage</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {TABLE_DATA.map((row, i) => (
+          <tr key={i}>
+            <td><div className={styles.candidateName}>{row.name}</div></td>
+            <td><span className={styles.roleText}>{row.role}</span></td>
+            <td><span className={styles.stageText}>{row.stage}</span></td>
+            <td><span className={`${styles.statusBadge} ${STATUS_CLASS[row.status]}`}>{row.status}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+const WidgetContent = ({ widget }) => {
+  switch (widget.type) {
+    case WIDGET_TYPES.KPI_CARD:   return <KpiCardContent kpiIndex={widget.kpiIndex} />;
+    case WIDGET_TYPES.LINE_CHART: return <LineChartContent />;
+    case WIDGET_TYPES.BAR_CHART:  return <BarChartContent />;
+    case WIDGET_TYPES.DATA_TABLE: return <DataTableContent />;
+    default: return null;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
+   WIDGET CARD (drag, resize, remove)
+══════════════════════════════════════════════════════════ */
+const GRID_COLS = 4;
+const COL_UNIT_PX = 260; // approximate, layout is CSS grid
+const ROW_UNIT_PX = 220;
+
+const WidgetCard = ({ widget, onRemove, onDragStart, onResize, isAdmin,isAnalyst }) => {
+  const isKpi = widget.type === WIDGET_TYPES.KPI_CARD;
+
+  /* ── resize handle ── */
+  const resizeRef = useRef(null);
+  const handleResizeMouseDown = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = widget.w;
+    const startH = widget.h;
+
+    const onMove = (ev) => {
+      const dw = Math.round((ev.clientX - startX) / COL_UNIT_PX);
+      const dh = Math.round((ev.clientY - startY) / ROW_UNIT_PX);
+      const newW = Math.max(1, Math.min(GRID_COLS - widget.col + 1, startW + dw));
+      const newH = Math.max(1, startH + dh);
+      onResize(widget.id, newW, newH);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [widget, onResize]);
+
+  const handleDragStart = (e,id) => {
+    if (!isAdmin) {
+        e.preventDefault();
+        return;
+    }
+    onDragStart(e,id);
+  }
+
+  return (
+    <div
+      className={`${styles.widgetCard} ${isKpi ? styles.widgetCardKpi : ""}`}
+      style={{
+        gridColumn: `${widget.col} / span ${widget.w}`,
+        gridRow:    `${widget.row} / span ${widget.h}`,
+      }}
+      draggable = {isAdmin}
+      onDragStart={(e) => handleDragStart(e, widget.id)}
+    >
+      {/* Header */}
+      <div className={styles.widgetHeader}>
+        <span className={styles.widgetDragHandle} title="Drag to reposition">
+          <IconDrag />
+        </span>
+        <span className={styles.widgetTitle}>{widget.title}</span>
+        {isAdmin && (
+          <button
+            className={styles.widgetRemoveBtn}
+            onClick={() => onRemove(widget.id)}
+            title="Remove widget"
+          >
+            <IconClose />
+        </button>)}
+      </div>
+
+      {/* Content */}
+      <div className={styles.widgetBody}>
+        <WidgetContent widget={widget} />
+      </div>
+
+      {/* Resize handle (bottom-right) */}
+      {(isAdmin || isAnalyst) && !isKpi && (
+        <div
+          ref={resizeRef}
+          className={styles.resizeHandle}
+          onMouseDown={handleResizeMouseDown}
+          title="Drag to resize"
+        >
+          <IconResize />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════
+   ADD WIDGET PANEL
+══════════════════════════════════════════════════════════ */
+const AddWidgetPanel = ({ onAdd, open, onClose }) => {
+  if (!open) return null;
+  return (
+    <div className={styles.addWidgetOverlay} onClick={onClose}>
+      <div className={styles.addWidgetPanel} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.addWidgetHeader}>
+          <span className={styles.addWidgetTitle}>Add Widget</span>
+          <button className={styles.addWidgetClose} onClick={onClose}><IconClose /></button>
+        </div>
+        <div className={styles.addWidgetGrid}>
+          {WIDGET_CATALOG.map((cat) => (
+            <button
+              key={cat.type}
+              className={styles.addWidgetItem}
+              onClick={() => { onAdd(cat.type); onClose(); }}
+            >
+              <span className={styles.addWidgetIcon}>{cat.icon}</span>
+              <span className={styles.addWidgetLabel}>{cat.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /* ══════════════════════════════════════════════════════════
    MAIN COMPONENT
@@ -207,14 +399,55 @@ const WorkspaceDetails = () => {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [saveState, setSaveState] = useState("idle"); // idle | saving | saved
-  const [docTitle, setDocTitle] = useState("");
-  const [activeFormats, setActiveFormats] = useState({});
+  const [widgets, setWidgets] = useState([]);
+  const [addPanelOpen, setAddPanelOpen] = useState(false);
+  const [dragId, setDragId] = useState(null);
 
-  const editorRef = useRef(null);
-  const saveTimerRef = useRef(null);
+  /* ── Drag-over state for drop target highlighting ── */
+  const [dropTarget, setDropTarget] = useState(null); // { col, row }
+  const [currentUser, setCurrentUser] = useState(null);
 
-  /* ── Helpers ─────────────────────────────────────────── */
+  const fetchCurrentUser = async () => {
+    const res = await api.get("/user/profile");
+    setCurrentUser(res.data.user);
+  };
+
+  useEffect(() => {
+    fetchCurrentUser();
+  },[])
+
+  const currentUserRole = workspace?.members.find(
+    member => member.user._id === currentUser?._id
+)?.role;
+
+  const isAdmin = currentUserRole === "Admin";
+  const isAnalyst = currentUserRole === "Analyst";
+  const isViewer = currentUserRole === "Viewer";
+
+  console.log("Current user role:", currentUserRole);
+
+  useEffect(() => {
+
+    if (!currentUserRole) return;
+
+    socket.emit("join-workspace", {
+        workspaceId,
+        role: currentUserRole
+    });
+
+    const handleDashboardState = (widgets) => {
+        setWidgets(widgets);
+    };
+
+    socket.on("dashboard-state", handleDashboardState);
+
+    return () => {
+        socket.emit("leave-workspace", workspaceId);
+        socket.off("dashboard-state", handleDashboardState);
+    };
+
+}, [workspaceId, currentUserRole]);
+
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3200);
@@ -224,7 +457,6 @@ const WorkspaceDetails = () => {
     try {
       const res = await api.get(`/workspace/${workspaceId}`);
       setWorkspace(res.data.workspace);
-      setDocTitle(res.data.workspace.name);
     } catch {
       showToast("Failed to load workspace.", "error");
     }
@@ -242,57 +474,123 @@ const WorkspaceDetails = () => {
     fetchAvailableUsers();
   }, [fetchWorkspace, fetchAvailableUsers]);
 
-  /* ── Editor: track active formats ──────────────────────── */
-  const updateActiveFormats = useCallback(() => {
-    setActiveFormats({
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
-      underline: document.queryCommandState("underline"),
-      strikeThrough: document.queryCommandState("strikeThrough"),
-      insertOrderedList: document.queryCommandState("insertOrderedList"),
-      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+  /* ── Widget actions ── */
+  const handleRemoveWidget = useCallback((id) => {
+    socket.emit("dashboard-action",{
+
+    workspaceId,
+
+    action:"DELETE_WIDGET",
+
+    data:{
+        widgetId:id
+    }
+
+});
+  }, []);
+
+  const handleAddWidget = useCallback((type) => {
+
+    const size = WIDGET_DEFAULT_SIZE[type];
+
+    const { row, col } = findEmptyPosition(
+        widgets,
+        size.w,
+        size.h
+    );
+
+    const kpiCount = widgets.filter(
+        w => w.type === WIDGET_TYPES.KPI_CARD
+    ).length;
+
+    const newWidget = {
+        id: makeId(),
+        type,
+        title:
+            WIDGET_CATALOG.find(c => c.type === type)?.label ||
+            "Widget",
+
+        row,
+        col,
+
+        w: size.w,
+        h: size.h,
+
+        ...(type === WIDGET_TYPES.KPI_CARD && {
+            kpiIndex: kpiCount % KPI_DATA.length
+        })
+    };
+
+    socket.emit("dashboard-action", {
+        workspaceId,
+        action: "ADD_WIDGET",
+        data: newWidget
+    });
+
+}, [widgets, workspaceId]);
+
+  const handleResize = useCallback((id, newW, newH) => {
+      socket.emit("dashboard-action",{
+
+        workspaceId,
+
+        action:"RESIZE_WIDGET",
+
+        data:{
+            widgetId:id,
+            w:newW,
+            h:newH
+        }
+
     });
   }, []);
 
-  /* ── Editor: exec command helper ────────────────────────── */
-  const exec = useCallback((cmd, value = null) => {
-    editorRef.current?.focus();
-    document.execCommand(cmd, false, value);
-    updateActiveFormats();
-  }, [updateActiveFormats]);
+  /* ── Drag & Drop ── */
+  const handleDragStart = useCallback((e, id) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
 
-  /* ── Auto-save simulation ────────────────────────────────
-     In a real app, POST/PUT the editor HTML to your API.
-     Here we debounce and fake it so the UX is correct.
-  ──────────────────────────────────────────────────────── */
-  const handleEditorInput = useCallback(() => {
-    updateActiveFormats();
-    setSaveState("saving");
-    clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        // await api.put(`/workspace/${workspaceId}/document`, {
-        //   content: editorRef.current?.innerHTML,
-        // });
-        await new Promise((r) => setTimeout(r, 600)); // simulate network
-        setSaveState("saved");
-        setTimeout(() => setSaveState("idle"), 2500);
-      } catch {
-        setSaveState("idle");
-      }
-    }, 1200);
-  }, [updateActiveFormats]);
+  /* Drop zone cells */
+  const handleCellDragOver = useCallback((e, col, row) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget({ col, row });
+  }, []);
 
-  /* ── Heading via formatBlock ─────────────────────────── */
-  const execHeading = useCallback((tag) => {
-    exec("formatBlock", tag);
-  }, [exec]);
+  const handleCellDrop = useCallback((e, col, row) => {
+    e.preventDefault();
+    if (!dragId) return;
+      socket.emit("dashboard-action",{
 
-  /* ── Add member ─────────────────────────────────────── */
+        workspaceId,
+
+        action:"MOVE_WIDGET",
+
+        data:{
+
+            widgetId:dragId,
+
+            col,
+
+            row
+
+        }
+
+    });
+    setDragId(null);
+    setDropTarget(null);
+  }, [dragId]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDropTarget(null);
+  }, []);
+
+  /* ── Add member ── */
   const handleAddMember = async () => {
     const user = availableUsers.find((u) => u._id === selectedUser);
     if (!user) return;
-
     setSubmitting(true);
     try {
       await api.post(`/workspace/${workspaceId}`, {
@@ -311,7 +609,17 @@ const WorkspaceDetails = () => {
     }
   };
 
-  /* ── Render ─────────────────────────────────────────── */
+  /* ── Compute grid rows needed ── */
+  const maxRow = widgets.reduce((m, w) => Math.max(m, w.row + w.h - 1), 4);
+
+  /* ── Drop grid: generate cell targets ── */
+  const dropCells = [];
+  for (let r = 1; r <= maxRow + 1; r++) {
+    for (let c = 1; c <= GRID_COLS; c++) {
+      dropCells.push({ col: c, row: r });
+    }
+  }
+
   if (!workspace) return <LoadingSkeleton />;
 
   const canSubmit = selectedUser && selectedRole && !submitting;
@@ -319,40 +627,18 @@ const WorkspaceDetails = () => {
   return (
     <div className={styles.shell}>
 
-      {/* ── Topbar ─────────────────────────────────────── */}
+      {/* ══ Topbar ══════════════════════════════════════ */}
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
-          {/* Editable doc title */}
-          <input
-            className={styles.docTitleInput}
-            value={docTitle}
-            onChange={(e) => setDocTitle(e.target.value)}
-            spellCheck={false}
-            aria-label="Document title"
-          />
-          {/* Save state indicator */}
-          <span className={`${styles.saveIndicator} ${
-            saveState === "saving" ? styles.saveIndicatorSaving :
-            saveState === "saved"  ? styles.saveIndicatorSaved  : styles.saveIndicatorIdle
-          }`}>
-            {saveState === "saving" && (
-              <><span className={styles.savingDot} />Saving…</>
-            )}
-            {saveState === "saved" && (
-              <><IconCheck />Saved</>
-            )}
-          </span>
+          <span className={styles.workspaceName}>{workspace.name}</span>
+          <span className={styles.workspaceTag}>Dashboard</span>
         </div>
 
         <div className={styles.topbarRight}>
-          {/* Member avatars — quick visual of who's here */}
+          {/* Member avatar strip */}
           <div className={styles.memberAvatarRow}>
             {workspace.members.slice(0, 4).map((m) => (
-              <div
-                key={m._id}
-                className={styles.miniAvatar}
-                title={`${m.user.name} · ${m.role}`}
-              >
+              <div key={m._id} className={styles.miniAvatar} title={`${m.user.name} · ${m.role}`}>
                 {getInitials(m.user.name)}
               </div>
             ))}
@@ -363,16 +649,13 @@ const WorkspaceDetails = () => {
             )}
           </div>
 
-          {/* Manual save button */}
-          <button
-            className={styles.saveBtn}
-            onClick={handleEditorInput}
-            title="Save document"
-          >
-            <IconSave /> Save
-          </button>
+          {isAdmin && (
+            <button className={styles.addWidgetBtn} onClick={() => setAddPanelOpen(true)}>
+              <IconAdd /> Add Widget
+            </button>
+          )}
 
-          {/* Toggle sidebar */}
+          {/* Sidebar toggle */}
           <button
             className={styles.sidebarToggle}
             onClick={() => setSidebarOpen((v) => !v)}
@@ -383,76 +666,56 @@ const WorkspaceDetails = () => {
         </div>
       </header>
 
-      {/* ── Body ───────────────────────────────────────── */}
+      {/* ══ Body ════════════════════════════════════════ */}
       <div className={`${styles.body} ${!sidebarOpen ? styles.bodyExpanded : ""}`}>
 
-        {/* ── Editor zone ──────────────────────────────── */}
-        <div className={styles.editorZone}>
-
-          {/* Formatting toolbar */}
-          <div className={styles.toolbar}>
-            <div className={styles.toolbarInner}>
-              <ToolBtn onClick={() => exec("undo")} title="Undo (Ctrl+Z)"><IconUndo /></ToolBtn>
-              <ToolBtn onClick={() => exec("redo")} title="Redo (Ctrl+Y)"><IconRedo /></ToolBtn>
-
-              <ToolDivider />
-
-              {/* Heading dropdownless buttons */}
-              <ToolBtn onClick={() => execHeading("h1")} title="Heading 1"><IconH1 /></ToolBtn>
-              <ToolBtn onClick={() => execHeading("h2")} title="Heading 2"><IconH2 /></ToolBtn>
-
-              <ToolDivider />
-
-              <ToolBtn onClick={() => exec("bold")} title="Bold (Ctrl+B)" active={activeFormats.bold}><IconBold /></ToolBtn>
-              <ToolBtn onClick={() => exec("italic")} title="Italic (Ctrl+I)" active={activeFormats.italic}><IconItalic /></ToolBtn>
-              <ToolBtn onClick={() => exec("underline")} title="Underline (Ctrl+U)" active={activeFormats.underline}><IconUnderline /></ToolBtn>
-              <ToolBtn onClick={() => exec("strikeThrough")} title="Strikethrough" active={activeFormats.strikeThrough}><IconStrike /></ToolBtn>
-
-              <ToolDivider />
-
-              <ToolBtn onClick={() => exec("insertUnorderedList")} title="Bullet list" active={activeFormats.insertUnorderedList}><IconUL /></ToolBtn>
-              <ToolBtn onClick={() => exec("insertOrderedList")} title="Numbered list" active={activeFormats.insertOrderedList}><IconOL /></ToolBtn>
-              <ToolBtn onClick={() => exec("formatBlock", "blockquote")} title="Blockquote"><IconQuote /></ToolBtn>
-              <ToolBtn onClick={() => exec("formatBlock", "pre")} title="Code block"><IconCode /></ToolBtn>
-
-              <ToolDivider />
-
-              <ToolBtn
-                onClick={() => {
-                  const url = prompt("Enter URL:");
-                  if (url) exec("createLink", url);
-                }}
-                title="Insert link"
-              >
-                <IconLink />
-              </ToolBtn>
-            </div>
-          </div>
-
-          {/* Paper scroll area */}
-          <div className={styles.paperScroll}>
-            <div className={styles.paper}>
+        {/* ── Widget Canvas ─────────────────────────── */}
+        <div className={styles.canvasScroll}>
+          <div
+            className={styles.widgetCanvas}
+            style={{ gridTemplateRows: `repeat(${maxRow + 1}, ${ROW_UNIT_PX}px)` }}
+            onDragEnd={handleDragEnd}
+          >
+            {/* Invisible drop-target cells behind widgets */}
+            {dropCells.map(({ col, row }) => (
               <div
-                ref={editorRef}
-                className={styles.editor}
-                contentEditable
-                suppressContentEditableWarning
-                spellCheck
-                onInput={handleEditorInput}
-                onKeyUp={updateActiveFormats}
-                onMouseUp={updateActiveFormats}
-                onSelect={updateActiveFormats}
-                data-placeholder="Start writing…"
+                key={`cell-${col}-${row}`}
+                className={`${styles.dropCell} ${
+                  dropTarget?.col === col && dropTarget?.row === row ? styles.dropCellActive : ""
+                }`}
+                style={{ gridColumn: col, gridRow: row }}
+                onDragOver={(e) => handleCellDragOver(e, col, row)}
+                onDrop={(e) => handleCellDrop(e, col, row)}
               />
-            </div>
+            ))}
+
+            {/* Actual widgets */}
+            {widgets.map((widget) => (
+              <WidgetCard
+                key={widget.id}
+                widget={widget}
+                onRemove={handleRemoveWidget}
+                onDragStart={handleDragStart}
+                onResize={handleResize}
+                isAdmin={isAdmin}
+                isAnalyst={isAnalyst}
+              />
+            ))}
           </div>
+
+          {/* Empty state */}
+          {widgets.length === 0 && (
+            <div className={styles.emptyCanvas}>
+              <div className={styles.emptyCanvasIcon}>📊</div>
+              <p className={styles.emptyCanvasTitle}>No widgets yet</p>
+              <p className={styles.emptyCanvasText}>Click <strong>Add Widget</strong> to build your dashboard.</p>
+            </div>
+          )}
         </div>
 
-        {/* ── Right sidebar ─────────────────────────────── */}
+        {/* ── Right Sidebar ─────────────────────────── */}
         {sidebarOpen && (
           <aside className={styles.sidebar}>
-
-            {/* Member roster */}
             <div className={styles.sidebarSection}>
               <p className={styles.sidebarLabel}>
                 Members
@@ -482,56 +745,31 @@ const WorkspaceDetails = () => {
               )}
             </div>
 
-            {/* Divider */}
             <div className={styles.sidebarDivider} />
 
-            {/* Add member panel */}
             <div className={styles.sidebarSection}>
               <p className={styles.sidebarLabel}>Add member</p>
-
               <div className={styles.addMemberForm}>
                 <div>
                   <label className={styles.fieldLabel} htmlFor="user-select">Person</label>
-                  <select
-                    id="user-select"
-                    className={styles.select}
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    disabled={submitting}
-                  >
+                  <select id="user-select" className={styles.select} value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)} disabled={submitting}>
                     <option value="">Select…</option>
-                    {availableUsers.map((user) => (
-                      <option key={user._id} value={user._id}>
-                        {user.name}
-                      </option>
+                    {availableUsers.map((u) => (
+                      <option key={u._id} value={u._id}>{u.name}</option>
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className={styles.fieldLabel} htmlFor="role-select">Role</label>
-                  <select
-                    id="role-select"
-                    className={styles.select}
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                    disabled={submitting}
-                  >
+                  <select id="role-select" className={styles.select} value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)} disabled={submitting}>
                     <option value="">Select…</option>
-                    {ROLES.map((role) => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
+                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
-
-                <button
-                  className={styles.addButton}
-                  disabled={!canSubmit}
-                  onClick={handleAddMember}
-                >
-                  {submitting ? (
-                    <><span className={styles.spinner} />Adding…</>
-                  ) : "Add member"}
+                <button className={styles.addButton} disabled={!canSubmit} onClick={handleAddMember}>
+                  {submitting ? <><span className={styles.spinner} />Adding…</> : "Add member"}
                 </button>
               </div>
             </div>
@@ -539,7 +777,14 @@ const WorkspaceDetails = () => {
         )}
       </div>
 
-      {/* Toast */}
+      {/* ══ Add Widget Panel ═══════════════════════════ */}
+      <AddWidgetPanel
+        open={addPanelOpen}
+        onClose={() => setAddPanelOpen(false)}
+        onAdd={handleAddWidget}
+      />
+
+      {/* ══ Toast ══════════════════════════════════════ */}
       {toast && <Toast message={toast.message} type={toast.type} />}
     </div>
   );
